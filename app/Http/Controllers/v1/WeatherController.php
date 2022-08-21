@@ -21,33 +21,32 @@ class WeatherController extends Controller
             $cities = explode(',', $ask);
             $response = [];
 
-            foreach ($cities as $city) {
+            DB::beginTransaction();
 
+            foreach ($cities as $city) {
                 if(!$this->checkExist($city)) {
                     /**
                      * * If the city doesn't exist
                      */
-                    DB::beginTransaction();
+
                     try
                     {
                         $data = $this->getWeather($city);
 
                         $record=[];
 
-                        $record['cityname']    = $city;
+                        $record['cityname']    = strtolower($city);
                         $record['expiration']  = $expiration;
                         $record['description'] = json_encode($data['json']);
                         $record['created_at']  = DB::raw('CURRENT_TIMESTAMP');
 
-
                         DB::table('cities')->insert($record);
-
-                        DB::commit();
 
                         $response[] =  [
                             'success' => true,
                             'response' => $data['json']
                         ];
+
                     }
                     catch (Throwable $e)
                     {
@@ -57,12 +56,11 @@ class WeatherController extends Controller
                             'response' => "An error occurred while inserting the record: ".$city.'-'.$th
                         ];
                     }
+
                 } else {
                     /**
                      * * If the city exist
                      */
-
-                    DB::beginTransaction();
                     try
                     {
                         /**
@@ -70,6 +68,7 @@ class WeatherController extends Controller
                          */
                         $checkTime = DB::table('cities')
                             ->select('cityname', 'expiration', 'description')
+                            ->where('cityname', $city)
                             ->where('expiration', '>', time())
                             ->get();
 
@@ -87,7 +86,7 @@ class WeatherController extends Controller
                                     ]
                                 );
 
-                            DB::commit();
+
 
                             $response[] = [
                                 'success' => true,
@@ -112,6 +111,8 @@ class WeatherController extends Controller
                 }
 
             }
+
+            DB::commit();
         }
         catch (\Throwable $th) {
             $response[] = [
@@ -161,11 +162,10 @@ class WeatherController extends Controller
         try {
             $checkCity = DB::table('cities')
                 ->select('cityname')
-                ->where('cityname', $city)
+                ->where('cityname', strtolower($city))
                 ->get();
 
-
-            return ((intval(count($checkCity)) == 0) ? false : true);
+            return ((intval(count($checkCity)) === 0) ? false : true);
 
 
         } catch (\Throwable $th) {
