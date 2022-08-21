@@ -20,10 +20,23 @@ class WeatherController extends Controller
             $expiration = time() + 3600;
             $cities = explode(',', $ask);
             $response = [];
+            $allCities = [];
 
             DB::beginTransaction();
 
             foreach ($cities as $city) {
+                /**
+                 * Check if city was requested
+                 */
+                if  (in_array($city, $allCities)) {
+                    continue;
+                }  else {
+                    $allCities[] = $city;
+                }
+
+                /**
+                 * Check if city exist inside database
+                 */
                 if(!$this->checkExist($city)) {
                     /**
                      * * If the city doesn't exist
@@ -31,6 +44,9 @@ class WeatherController extends Controller
 
                     try
                     {
+                        /**
+                         * Check the enpoint
+                         */
                         $data = $this->getWeather($city);
 
                         $record=[];
