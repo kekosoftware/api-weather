@@ -4,6 +4,8 @@ namespace App\Http\Controllers\v1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
+use DB;
 
 class WeatherController extends Controller
 {
@@ -14,104 +16,113 @@ class WeatherController extends Controller
     public function index(Request $request)
     {
         try {
-            $city = $request->query('query');
+            $ask = $request->query('query');
             $expiration = time() + 3600;
+            $cities = explode(',', $ask);
+            $response = [];
 
-            if(!$this->checkExist($city)) {
-                /**
-                 * * If the city doesn't exist
-                 */
-                DB::beginTransaction();
-                try
-                {
-                    $data = $this->getWeather($city);
+            foreach ($cities as $city) {
 
-                    $record=[];
-
-                    $record['cityname']    = $city;
-                    $record['expiration']  = $expiration;
-                    $record['description'] = json_encode($data['json']);
-                    $record['created_at']  = DB::raw('CURRENT_TIMESTAMP');
-
-
-                    DB::table('cities')->insert($record);
-
-                    DB::commit();
-
-                    return [
-                        'success' => true,
-                        'response' => $data['json']
-                    ];
-                }
-                catch (Throwable $e)
-                {
-                    DB::rollback();
-                    return [
-                        'success' => false,
-                        'response' => "An error occurred while inserting the record: ".$city.'-'.$th
-                    ];
-                }
-            } else {
-                /**
-                 * * If the city exist
-                 */
-
-                DB::beginTransaction();
-                try
-                {
+                if(!$this->checkExist($city)) {
                     /**
-                     * * Check the time
+                     * * If the city doesn't exist
                      */
-                    $checkTime = DB::table('cities')
-                        ->select('cityname', 'expiration', 'description')
-                        ->where('expiration', '>', time())
-                        ->get();
-
-                    if(!intval(count($checkTime))) {
-
+                    DB::beginTransaction();
+                    try
+                    {
                         $data = $this->getWeather($city);
 
-                        $updateResponse = DB::table('cities')
-                            ->where('cityname', $city)
-                            ->update(
-                                [
-                                    'description' => json_encode($data['json']),
-                                    'expiration' => time() + 3600,
-                                    'updated_at' => DB::raw('CURRENT_TIMESTAMP'),
-                                ]
-                            );
+                        $record=[];
+
+                        $record['cityname']    = $city;
+                        $record['expiration']  = $expiration;
+                        $record['description'] = json_encode($data['json']);
+                        $record['created_at']  = DB::raw('CURRENT_TIMESTAMP');
+
+
+                        DB::table('cities')->insert($record);
 
                         DB::commit();
 
-                        return [
+                        $response[] =  [
                             'success' => true,
                             'response' => $data['json']
                         ];
-                    } else {
+                    }
+                    catch (Throwable $e)
+                    {
+                        DB::rollback();
+                        $response[] = [
+                            'success' => false,
+                            'response' => "An error occurred while inserting the record: ".$city.'-'.$th
+                        ];
+                    }
+                } else {
+                    /**
+                     * * If the city exist
+                     */
 
-                        return [
-                            'success' => true,
-                            'response' => json_decode($checkTime[0]->description),
+                    DB::beginTransaction();
+                    try
+                    {
+                        /**
+                         * * Check the time
+                         */
+                        $checkTime = DB::table('cities')
+                            ->select('cityname', 'expiration', 'description')
+                            ->where('expiration', '>', time())
+                            ->get();
+
+                        if(!intval(count($checkTime))) {
+
+                            $data = $this->getWeather($city);
+
+                            $updateResponse = DB::table('cities')
+                                ->where('cityname', $city)
+                                ->update(
+                                    [
+                                        'description' => json_encode($data['json']),
+                                        'expiration' => time() + 3600,
+                                        'updated_at' => DB::raw('CURRENT_TIMESTAMP'),
+                                    ]
+                                );
+
+                            DB::commit();
+
+                            $response[] = [
+                                'success' => true,
+                                'response' => $data['json']
+                            ];
+                        } else {
+
+                            $response[] = [
+                                'success' => true,
+                                'response' => json_decode($checkTime[0]->description),
+                            ];
+                        }
+                    }
+                    catch (Throwable $e)
+                    {
+                        DB::rollback();
+                        $response[] = [
+                            'success' => false,
+                            'response' => "An error occurred while inserting the record: ".$city.'-'.$th
                         ];
                     }
                 }
-                catch (Throwable $e)
-                {
-                    DB::rollback();
-                    return [
-                        'success' => false,
-                        'response' => "An error occurred while inserting the record: ".$city.'-'.$th
-                    ];
-                }
+
             }
         }
         catch (\Throwable $th) {
-            return [
+            $response[] = [
                 'success' => false,
                 'expiration' => $expiration,
+                'city' => $cities,
                 'response' => 'An error occurred while recovery the var. '.$th
             ];
         }
+
+        return $response;
     }
 
     private function getWeather($city)
@@ -152,6 +163,7 @@ class WeatherController extends Controller
                 ->select('cityname')
                 ->where('cityname', $city)
                 ->get();
+
 
             return ((intval(count($checkCity)) == 0) ? false : true);
 
