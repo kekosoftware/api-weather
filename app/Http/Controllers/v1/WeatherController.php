@@ -64,7 +64,7 @@ class WeatherController extends Controller
                         ];
 
                     }
-                    catch (Throwable $e)
+                    catch (\Throwable $e)
                     {
                         DB::rollback();
                         $response[] = [
@@ -92,7 +92,7 @@ class WeatherController extends Controller
 
                             $data = $this->getWeather($city);
 
-                            $updateResponse = DB::table('cities')
+                            DB::table('cities')
                                 ->where('cityname', $city)
                                 ->update(
                                     [
@@ -102,21 +102,19 @@ class WeatherController extends Controller
                                     ]
                                 );
 
-
-
                             $response[] = [
                                 'success' => true,
                                 'response' => $data['json']
                             ];
                         } else {
-
+dd($city, json_decode($checkTime[0]->description));
                             $response[] = [
                                 'success' => true,
                                 'response' => json_decode($checkTime[0]->description),
                             ];
                         }
                     }
-                    catch (Throwable $e)
+                    catch (\Throwable $e)
                     {
                         DB::rollback();
                         $response[] = [
@@ -182,7 +180,6 @@ class WeatherController extends Controller
                 ->get();
 
             return ((intval(count($checkCity)) === 0) ? false : true);
-
 
         } catch (\Throwable $th) {
             return "An error occurred while querying the database".$th;
