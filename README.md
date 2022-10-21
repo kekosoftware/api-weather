@@ -11,13 +11,11 @@
 </p>
 
 ## About API
-
 With this api you can check the weather of a city
 Cities may be separated by commas.
 Usage example: http://127.0.0.1:8000/api/v1/current?query=New%20York,formosa
 
 ## How to
-
 * git clone https://github.com/kekosoftware/api-weather.git
 * composer install
 * configure .env file
